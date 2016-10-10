@@ -3,15 +3,15 @@
 #
 # Driver for distributed JMeter testing.
 #
-# This script will 
-#   i.  Create a Docker container each for the specified number 
+# This script will
+#   i.  Create a Docker container each for the specified number
 #       of JMeter servers.
 #  ii.  Create a Docker container for the JMeter client (master).
-#       The client will connect to the servers created in step 
+#       The client will connect to the servers created in step
 #       (i) and trigger the test script that is provided.
 #  TODO: Shutdown
 #        Tips -- Look for the following in the client logs
-# 
+#
 #          INFO - Shutdown hook started
 #          DEBUG - jmeter.reporters.ResultCollector: Flushing: /logs/results.csv
 #          INFO  - jmeter.reporters.ResultCollector: Shutdown hook ended
@@ -24,14 +24,16 @@
 #
 # The environment
 # export DOCKER_HOST=tcp://104.236.28.252:2376
-SLAVE_IMAGE=santosharakere/jmeter-server
-MASTER_IMAGE=santosharakere/jmeter
+SLAVE_IMAGE=ordnancesurvey/jmeter-server
+MASTER_IMAGE=ordnancesurvey/jmeter
 DATADIR=
 JMX_SCRIPT=
 CWD=$(readlink -f .)
 NUM_SERVERS=1
 HOST_WRITE_PORT=49500
 HOST_READ_PORT=49501
+JMETER_OPTS_FILE=${DATADIR}/jmeter.opts
+JMETER_OPTS=""
 
 function validate_env() {
 	if [[ ! -d ${CWD} ]] ; then
@@ -56,11 +58,21 @@ function validate_env() {
 	fi
 }
 
+# Read system and application properties from a file
+function jmeter_opts {
+    if [[ -r ${JMETER_OPTS_FILE} ]]; then
+        cat ${JMETER_OPTS_FILE} | while read LINE; do
+            JMETER_OPTS="${JMETER_OPTS} ${LINE}"
+        done
+    fi
+}
+
 function display_env() {
 	echo "    DATADIR=${DATADIR}"
 	echo " JMX_SCRIPT=${JMX_SCRIPT}"
 	echo "        CWD=${CWD}"
 	echo "NUM_SERVERS=${NUM_SERVERS}"
+    echo "JMETER_OPTS=${JMETER_OPTS}"
 }
 
 function start_servers() {
@@ -69,11 +81,11 @@ function start_servers() {
 	do
 		# Create a log directory for the server
 		LOGDIR=${CWD}/logs/${n}
-	  mkdir -p ${LOGDIR}
-	
+	    mkdir -p ${LOGDIR}
+
 		# Start the server container
 		# docker run --cidfile ${LOGDIR}/cid \
-	        docker run -d -p 0.0.0.0:${HOST_READ_PORT}:1099 -p 0.0.0.0:${HOST_WRITE_PORT}:60000 -v ${LOGDIR}:/logs -v ${DATADIR}:/input_data ${SLAVE_IMAGE} 1>/dev/null 2>&1
+	    docker run -d -p 0.0.0.0:${HOST_READ_PORT}:1099 -p 0.0.0.0:${HOST_WRITE_PORT}:60000 -v ${LOGDIR}:/logs -v ${DATADIR}:/input_data ${SLAVE_IMAGE} ${JMETER_OPTS} 1>/dev/null 2>&1
 		docker ps
 
 		err=$?
@@ -83,7 +95,7 @@ function start_servers() {
 		fi
 
 		# Prepare for next server
-	        n=$((${n} + 1))
+        n=$((${n} + 1))
 		HOST_READ_PORT=$((${HOST_READ_PORT} +  2))
 		HOST_WRITE_PORT=$((${HOST_WRITE_PORT} + 2))
 	done
@@ -91,14 +103,14 @@ function start_servers() {
 
 function server_ips() {
 	#
-	# CAUTION: The logic here assumes that we want to use all 
+	# CAUTION: The logic here assumes that we want to use all
 	# active jmeter servers.
 	for pid in $(docker ps | grep ${SLAVE_IMAGE} | awk '{print $1}')
 	do
-	
+
 	  # Get the IP for the current pid
 	  x=$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' ${pid})
-	
+
 		# Append to SERVER_IPS
 		if [[ ! -z "${SERVER_IPS}" ]]; then
 			SERVER_IPS=${SERVER_IPS},
@@ -158,6 +170,10 @@ shift $((OPTIND -1))
 #
 # Validate environment
 validate_env
+
+#
+# Read any addittional configuration for JMeter (system properties etc)
+jmeter_opts
 
 #
 # Make sure the user is satisfied with the settings
