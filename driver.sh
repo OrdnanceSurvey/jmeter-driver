@@ -24,15 +24,14 @@
 #
 # The environment
 # export DOCKER_HOST=tcp://104.236.28.252:2376
-SLAVE_IMAGE=ordnancesurvey/jmeter-server
-MASTER_IMAGE=ordnancesurvey/jmeter
+SLAVE_IMAGE=ordnancesurvey/jmeter-server:v1.0
+MASTER_IMAGE=ordnancesurvey/jmeter:v1.0
 DATADIR=
 JMX_SCRIPT=
 CWD=$(readlink -f .)
 NUM_SERVERS=1
 HOST_WRITE_PORT=49500
 HOST_READ_PORT=49501
-#JMETER_OPTS="1111"
 
 function validate_env() {
     if [[ ! -d ${CWD} ]] ; then
