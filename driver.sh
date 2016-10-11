@@ -32,8 +32,7 @@ CWD=$(readlink -f .)
 NUM_SERVERS=1
 HOST_WRITE_PORT=49500
 HOST_READ_PORT=49501
-JMETER_OPTS_FILE=${DATADIR}/jmeter.opts
-JMETER_OPTS=""
+#JMETER_OPTS="1111"
 
 function validate_env() {
     if [[ ! -d ${CWD} ]] ; then
@@ -61,9 +60,8 @@ function validate_env() {
 # Read system and application properties from a file
 function jmeter_opts {
     if [[ -r ${JMETER_OPTS_FILE} ]]; then
-        cat ${JMETER_OPTS_FILE} | while read LINE; do
-            JMETER_OPTS="${JMETER_OPTS} ${LINE}"
-        done
+        T=$(cat ${JMETER_OPTS_FILE})
+        echo ${T}
     fi
 }
 
@@ -107,9 +105,8 @@ function server_ips() {
     # active jmeter servers.
     for pid in $(docker ps | grep ${SLAVE_IMAGE} | awk '{print $1}')
     do
-
-      # Get the IP for the current pid
-      x=$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' ${pid})
+        # Get the IP for the current pid
+        x=$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' ${pid})
 
         # Append to SERVER_IPS
         if [[ ! -z "${SERVER_IPS}" ]]; then
@@ -173,7 +170,8 @@ validate_env
 
 #
 # Read any addittional configuration for JMeter (system properties etc)
-jmeter_opts
+JMETER_OPTS_FILE=${DATADIR}/jmeter.opts
+JMETER_OPTS=$(jmeter_opts)
 
 #
 # Make sure the user is satisfied with the settings
